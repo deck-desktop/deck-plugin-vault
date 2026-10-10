@@ -173,8 +173,8 @@ const SKIP_DIRS = new Set([".obsidian", ".trash", ".git", "node_modules"]);
  * PDFs its notes embed, and a tree that hides them makes an attachment impossible to find from
  * inside Deck. What each one does when opened is `viewerFor`'s decision, not this one.
  *
- * Syncthing's conflict copies are real files but not anything anyone wrote — `vault.rs::notes_list`
- * filters them for the same reason.
+ * Syncthing's conflict copies (in a vault the user syncs with it) are real files but not anything
+ * anyone wrote — `vault.rs::notes_list` filters them for the same reason.
  */
 export function keepEntry(name: string, isDir: boolean): boolean {
   if (name.startsWith(".")) return false;
@@ -209,7 +209,7 @@ export type Viewer = "markdown" | "image" | "video" | "audio" | "pdf" | "text" |
  *
  * Only markdown is editable here; everything else is read-only, because editing a source file is
  * the Editor module's job and a second editing path would mean a second autosave over the same
- * Syncthing folder.
+ * folder.
  *
  * Anything unrecognised is treated as TEXT rather than binary: a vault is full of .yaml, .csv,
  * .canvas and extensionless files, and showing those as "cannot preview" would be wrong far more

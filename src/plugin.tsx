@@ -7,10 +7,11 @@
 //
 // Only markdown is EDITABLE here. Images, media and source files are shown read-only: editing a
 // source file is the Editor module's job, and a second editing path would mean a second autosave
-// racing the first over the same Syncthing folder.
+// racing the first over the same folder.
 //
-// The vault is a Syncthing folder the phone and the VPS also write to, so nothing is cached
-// across sessions and the open note is written back on a debounce, as Notes.tsx does it.
+// The vault is the user's own Obsidian vault, which Obsidian and whatever syncs it also write to,
+// so nothing is cached across sessions and the open note is written back on a debounce, as
+// Notes.tsx does it.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronRight, ChevronDown, FileText, Folder, FolderOpen, RefreshCw, Search,
@@ -18,7 +19,7 @@ import {
   Music, Video, FileCode2, FileQuestion, Eye, Copy,
 } from "lucide-react";
 import {
-  getVaultRoot, fsList, fsRead, fsWrite, fsSearch, convertFileSrc, fsReveal,
+  getVaultRoot, setVaultRoot, pickFolder, fsList, fsRead, fsWrite, fsSearch, convertFileSrc, fsReveal,
   fsCreateFile, fsCreateDir, fsRename, fsDelete, fsMove,
   type FsEntry,
 } from "../shim/bridge.js";
@@ -29,6 +30,7 @@ import {
 } from "../shim/ui.js";
 import type { EditorView } from "@codemirror/view";
 import { monaco } from "../shim/monaco.js";
+import { listen } from "../shim/event.js";
 import {
   resolveLink, backlinkQuery, linksTo, keepEntry, sortEntries, noteTitle, baseName,
   viewerFor, isNote, nameError, isInside, extOf,
@@ -96,8 +98,8 @@ async function listDir(dir: string): Promise<FsEntry[]> {
  * handful of rounds.
  *
  * ponytail: no caching between opens and no file watching. A vault of a few thousand notes walks
- * in well under a second, and the alternative is an index that goes stale the moment the phone
- * writes. Revisit if a vault ever gets big enough to feel it.
+ * in well under a second, and the alternative is an index that goes stale the moment anything
+ * else writes to the vault. Revisit if a vault ever gets big enough to feel it.
  */
 async function walkNotes(root: string): Promise<Note[]> {
   const out: Note[] = [];
@@ -344,6 +346,12 @@ export default function Vault() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  // The folder is chosen in this plugin's settings, or from the empty state below; either way
+  // it lands in vault-root.json, and the tab follows.
+  useEffect(() => {
+    const un = listen<string[]>("config-changed", (e) => { if (e.payload.includes("vault-root")) void load(); });
+    return () => { void un.then((f) => f()); };
+  }, [load]);
 
   /**
    * Re-read the folders that are currently open, keeping them open.
@@ -619,7 +627,7 @@ export default function Vault() {
             {node.entry.dir
               ? "The folder and everything inside it are deleted."
               : "The file is deleted."}
-            {" "}It goes to the Recycle Bin, and Syncthing will remove it from your other devices.
+            {" "}It goes to the Recycle Bin.
           </p>
           <p className="font-mono text-[12px] text-text-muted">{rel}</p>
         </>
@@ -839,8 +847,12 @@ export default function Vault() {
 
   if (!root) {
     return (
-      <div className="flex h-full items-center justify-center px-6 text-center text-[13px] text-text-muted">
-        No vault root is set. Pick one in Settings, and Deck will read its notes from there.
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-[13px] text-text-muted">
+        <span>No vault folder is set. Choose the folder that holds your notes.</span>
+        <button onClick={() => void chooseVault()}
+          className="rounded-lg border border-subtle px-3 py-1.5 text-text-secondary hover:border-accent-soft hover:text-text-primary">
+          Choose folder…
+        </button>
       </div>
     );
   }
@@ -1034,6 +1046,31 @@ export default function Vault() {
       )}
       <NamePrompt state={naming} onClose={() => setNaming(null)} />
       <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />
+    </div>
+  );
+}
+
+/** Pick the vault folder. Saved where Deck keeps it (vault-root.json); the tab reloads on the change. */
+async function chooseVault(): Promise<string> {
+  const dir = await pickFolder().catch(() => "");
+  if (dir) await setVaultRoot(dir).catch(() => {});
+  return dir;
+}
+
+/** Settings > Plugins > Vault: which folder the tab browses. */
+export function Settings() {
+  const [root, setRoot] = useState("");
+  useEffect(() => { getVaultRoot().then(setRoot).catch(() => {}); }, []);
+  return (
+    <div className="space-y-1.5">
+      <div className="text-xs font-medium text-text-secondary">Vault folder</div>
+      <button onClick={async () => { const d = await chooseVault(); if (d) setRoot(d); }}
+        className="flex w-full items-center gap-2 rounded-lg border border-subtle px-3 py-2.5 text-left text-sm hover:border-accent-soft"
+        style={{ background: "var(--bg-elev)" }}>
+        <FolderOpen size={16} className="shrink-0 text-text-muted" />
+        <span className={root ? "" : "text-text-muted"}>{root || "Not set — click to choose"}</span>
+      </button>
+      <div className="text-[11px] italic text-text-muted">Any folder of markdown notes; an Obsidian vault works as it is.</div>
     </div>
   );
 }
