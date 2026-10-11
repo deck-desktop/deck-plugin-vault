@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronRight, ChevronDown, FileText, Folder, FolderOpen, RefreshCw, Search,
   Link2, Loader2, X, FilePlus2, FolderPlus, Pencil, Trash2, Image as ImageIcon,
-  Music, Video, FileCode2, FileQuestion, Eye, Copy,
+  Music, Video, FileCode2, FileQuestion, Eye, Copy, PanelLeft,
 } from "lucide-react";
 import {
   getVaultRoot, setVaultRoot, pickFolder, fsList, fsRead, fsWrite, fsSearch, convertFileSrc, fsReveal,
@@ -317,6 +317,22 @@ export default function Vault() {
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const [paneW, paneHandle] = useResize({ initial: 260, min: 0, max: 560, direction: "horizontal" });
+  // In a narrow pane the tree is a drawer over the note, opened from the toggle above it, rather
+  // than a column that would leave the note a sliver. Measured here rather than with a Deck hook so
+  // the plugin keeps working on a Deck that has none.
+  // A ref callback, so measuring starts whenever the element appears (it is not there while the
+  // vault is loading, and an effect reading a ref on mount never ran again).
+  const [rootEl, rootRef] = useState<HTMLDivElement | null>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (!rootEl) return;
+    const ro = new ResizeObserver(([e]) => setNarrow(e.contentRect.width < 620));
+    ro.observe(rootEl);
+    return () => ro.disconnect();
+  }, [rootEl]);
+  const [treeOpen, setTreeOpen] = useState(false);
+  const drawer = narrow && treeOpen;
+  useEffect(() => { setTreeOpen(false); }, [openPath]);
 
   // The live editor, handed out by MarkdownLive, so the toolbar can dispatch INTO it rather than
   // rewriting the string around it — which is what keeps one Ctrl+Z undoing one Bold.
@@ -858,9 +874,13 @@ export default function Vault() {
   }
 
   return (
-    <div className="flex h-full min-h-0">
+    <div ref={rootRef} className="relative flex h-full min-h-0">
+      {/* The drawer's backdrop: a click beside it closes it. */}
+      {drawer && <div className="absolute inset-0 z-20 bg-black/40" onClick={() => setTreeOpen(false)} />}
       {/* Tree */}
-      <div className="flex min-h-0 shrink-0 flex-col border-r border-subtle bg-panel/80 backdrop-blur-xl blur-surface" style={{ width: paneW }}>
+      <div className={"flex min-h-0 shrink-0 flex-col border-r border-subtle bg-panel/80 backdrop-blur-xl blur-surface "
+          + (narrow ? (drawer ? "absolute inset-y-0 left-0 z-30 shadow-2xl" : "hidden") : "")}
+        style={{ width: narrow ? `min(${paneW}px, 85%)` : paneW, ...(drawer ? { background: "var(--bg-panel)" } : {}) }}>
         <div className="flex shrink-0 items-center gap-1.5 border-b border-subtle px-2 py-1.5">
           <Search size={13} className="shrink-0 text-text-muted" />
           <input
@@ -920,7 +940,7 @@ export default function Vault() {
         </div>
       </div>
 
-      <div {...paneHandle} className="w-1 shrink-0 cursor-col-resize hover:bg-accent/30" />
+      {!narrow && <div {...paneHandle} className="w-1 shrink-0 cursor-col-resize hover:bg-accent/30" />}
 
       {/* Editor. Nearly opaque, unlike the tree, for the same reason the HTTP module's main pane
           is: prose is drawn straight onto the panel, so a wallpaper sits directly behind the text
@@ -928,6 +948,16 @@ export default function Vault() {
           "Panel opacity" setting, and with no wallpaper the variable is just the plain colour. */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col"
         style={{ background: "var(--bg-panel-glass)" }}>
+        {/* In a narrow pane the tree's toggle sits at the start of the tab row. */}
+        <div className="flex min-w-0 items-stretch">
+        {narrow && (
+          <button onClick={() => setTreeOpen((o) => !o)} title={treeOpen ? "Hide notes" : "Show notes"}
+            className="flex shrink-0 items-center border-b border-r border-subtle px-2.5 py-1.5 text-text-muted transition-colors hover:text-text"
+            style={treeOpen ? { color: "var(--accent)" } : undefined}>
+            <PanelLeft size={15} />
+          </button>
+        )}
+        <div className="min-w-0 flex-1">
         {tabs.length > 0 && (
           <TabStrip
             tabs={tabs.map((t) => {
@@ -968,6 +998,8 @@ export default function Vault() {
             ) : undefined}
           />
         )}
+        </div>
+        </div>
         {openPath ? (
           <>
             {/* No path row: the tab already names the file, and its tooltip carries the full

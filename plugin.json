@@ -3,7 +3,7 @@
   "name": "Vault",
   "description": "Browse and edit the Obsidian vault as live-preview markdown, with wikilinks and backlinks.",
   "icon": "NotebookText",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "minDeck": "0.10.0",
   "fullBleed": true
 }
