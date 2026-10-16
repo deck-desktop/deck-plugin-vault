@@ -19,7 +19,7 @@ import {
   Music, Video, FileCode2, FileQuestion, Eye, Copy, PanelLeft,
 } from "lucide-react";
 import {
-  getVaultRoot, setVaultRoot, pickFolder, fsList, fsRead, fsWrite, fsSearch, convertFileSrc, fsReveal,
+  configRead, configWrite, pickFolder, fsList, fsRead, fsWrite, fsSearch, convertFileSrc, fsReveal,
   fsCreateFile, fsCreateDir, fsRename, fsDelete, fsMove,
   type FsEntry,
 } from "../shim/bridge.js";
@@ -82,7 +82,7 @@ function relTo(root: string, path: string): string {
 
 /** List one directory, filtered and sorted the way the tree wants it. */
 async function listDir(dir: string): Promise<FsEntry[]> {
-  const raw = await fsList(dir).catch(() => [] as FsEntry[]);
+  const raw = await fsList(dir).catch((e) => { console.warn("[vault] folder list failed", e); return [] as FsEntry[]; });
   const kept = raw.filter((e) => keepEntry(e.name, e.dir));
   // sortEntries is written against `isDir` so it can be checked without Deck's FsEntry type.
   return sortEntries(kept.map((e) => ({ ...e, isDir: e.dir })));
@@ -352,7 +352,7 @@ export default function Vault() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const r = await getVaultRoot().catch(() => "");
+    const r = await getVaultRoot().catch((e) => { console.warn("[vault] vault root read failed", e); return ""; });
     setRoot(r);
     if (!r) { setLoading(false); return; }
     const [top, all] = await Promise.all([listDir(r), walkNotes(r)]);
@@ -824,7 +824,7 @@ export default function Vault() {
     const target: Note = { path, rel };
     const hits = await fsSearch(root, backlinkQuery(rel), {
       caseSensitive: false, isRegex: false, wholeWord: false, includes: "*.md", excludes: "",
-    }).catch(() => []);
+    }).catch((e) => { console.warn("[vault] backlink search failed", e); return []; });
 
     // fsSearch's query is a prefix, so every hit is re-checked by actually resolving its links —
     // otherwise [[Meeting Notes]] would come back as a backlink of [[Meeting]].
@@ -1082,17 +1082,24 @@ export default function Vault() {
   );
 }
 
-/** Pick the vault folder. Saved where Deck keeps it (vault-root.json); the tab reloads on the change. */
+/** The vault folder, "" when none is set. Its own config: a JSON string, `"C:\\Users\\me\\obsidian"`. */
+async function getVaultRoot(): Promise<string> {
+  const t = await configRead("vault-root");
+  try { return t.trim() ? String(JSON.parse(t)) : ""; } catch { return t.trim().replace(/^"|"$/g, ""); }
+}
+const setVaultRoot = (dir: string) => configWrite("vault-root", dir.trim() ? JSON.stringify(dir.trim()) : "");
+
+/** Pick the vault folder. The tab reloads on the change (config-changed). */
 async function chooseVault(): Promise<string> {
-  const dir = await pickFolder().catch(() => "");
-  if (dir) await setVaultRoot(dir).catch(() => {});
+  const dir = await pickFolder().catch((e) => { console.warn("[vault] folder picker failed", e); return ""; });
+  if (dir) await setVaultRoot(dir).catch((e) => console.warn("[vault] vault root save failed", e));
   return dir;
 }
 
 /** Settings > Plugins > Vault: which folder the tab browses. */
 export function Settings() {
   const [root, setRoot] = useState("");
-  useEffect(() => { getVaultRoot().then(setRoot).catch(() => {}); }, []);
+  useEffect(() => { getVaultRoot().then(setRoot).catch((e) => console.warn("[vault] vault root read failed", e)); }, []);
   return (
     <div className="space-y-1.5">
       <div className="text-xs font-medium text-text-secondary">Vault folder</div>
