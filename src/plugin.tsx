@@ -25,7 +25,7 @@ import {
 } from "../shim/bridge.js";
 import {
   MarkdownLive, MarkdownToolbar, cmSurface, TreeRow, TabStrip, ContextMenu, ConfirmDialog,
-  NamePrompt, toast, useResize, useRowDrag,
+  NamePrompt, Field, toast, useResize, useRowDrag,
   type MenuEntry, type ConfirmState, type NamePromptState, type TextSurface,
 } from "../shim/ui.js";
 import type { EditorView } from "@codemirror/view";
@@ -134,6 +134,11 @@ function iconFor(name: string) {
   }
 }
 
+/** A toolbar's icon button, the filled button for the one thing to do next, and the rest. */
+const toolBtn = "grid size-7 shrink-0 place-items-center rounded-lg text-text-muted transition-colors hover:bg-white/5 hover:text-text-primary";
+const primaryBtn = "flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-medium text-white transition hover:brightness-110";
+const secondaryBtn = "flex h-8 items-center gap-1.5 rounded-lg border border-subtle px-3 text-[12.5px] text-text-secondary transition-colors hover:border-strong hover:text-text-primary";
+
 // ---- viewers ---------------------------------------------------------------------------------
 
 /** A read-only Monaco for a text file that is not markdown. */
@@ -204,19 +209,19 @@ function FileViewer({ path, kind }: { path: string; kind: Viewer }) {
   }
   if (kind === "binary") {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-1 text-[13px] text-text-muted">
-        <FileQuestion size={20} className="opacity-60" />
+      <div className="flex h-full flex-col items-center justify-center gap-1.5 text-[12.5px] text-text-muted">
+        <FileQuestion size={18} className="opacity-60" />
         <span>No preview for .{extOf(path)} files.</span>
       </div>
     );
   }
   if (err) {
-    return <div className="flex h-full items-center justify-center px-6 text-[13px] text-text-muted">{err}</div>;
+    return <div className="flex h-full items-center justify-center px-6 text-[12.5px] text-text-muted">{err}</div>;
   }
   if (text === null) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-text-muted">
-        <Loader2 size={16} className="animate-spin" /> Reading…
+      <div className="flex h-full items-center justify-center gap-2 text-[12.5px] text-text-muted">
+        <Loader2 size={14} className="animate-spin" /> Reading…
       </div>
     );
   }
@@ -855,20 +860,25 @@ export default function Vault() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-text-muted">
-        <Loader2 size={16} className="animate-spin" /> Reading the vault…
+      <div className="flex h-full items-center justify-center gap-2 text-[12.5px] text-text-muted">
+        <Loader2 size={14} className="animate-spin" /> Reading the vault…
       </div>
     );
   }
 
   if (!root) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-[13px] text-text-muted">
-        <span>No vault folder is set. Choose the folder that holds your notes.</span>
-        <button onClick={() => void chooseVault()}
-          className="rounded-lg border border-subtle px-3 py-1.5 text-text-secondary hover:border-accent-soft hover:text-text-primary">
-          Choose folder…
-        </button>
+      <div className="flex h-full items-center justify-center px-6">
+        <div className="flex max-w-[420px] items-start gap-2.5 rounded-lg border border-subtle px-3.5 py-3.5 text-[12.5px] leading-relaxed text-text-muted"
+          style={{ background: "var(--bg-elev)" }}>
+          <FolderOpen size={16} className="mt-0.5 shrink-0" />
+          <div className="flex flex-col items-start gap-3">
+            <span>No vault folder is set. Choose the folder that holds your notes; an Obsidian vault works as it is.</span>
+            <button onClick={() => void chooseVault()} className={primaryBtn} style={{ background: "var(--accent)" }}>
+              Choose folder…
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -881,32 +891,34 @@ export default function Vault() {
       <div className={"flex min-h-0 shrink-0 flex-col border-r border-subtle bg-panel/80 backdrop-blur-xl blur-surface "
           + (narrow ? (drawer ? "absolute inset-y-0 left-0 z-30 shadow-2xl" : "hidden") : "")}
         style={{ width: narrow ? `min(${paneW}px, 85%)` : paneW, ...(drawer ? { background: "var(--bg-panel)" } : {}) }}>
-        <div className="flex shrink-0 items-center gap-1.5 border-b border-subtle px-2 py-1.5">
-          <Search size={13} className="shrink-0 text-text-muted" />
-          <input
-            value={filter} onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter notes"
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-text outline-none placeholder:text-text-muted"
-          />
-          {filter && (
-            <button onClick={() => setFilter("")} className="shrink-0 text-text-muted hover:text-text">
-              <X size={13} />
-            </button>
-          )}
-          <button onClick={() => askNew(root, "note")} title="New note in the vault root"
-            className="shrink-0 text-text-muted hover:text-text">
-            <FilePlus2 size={13} />
+        <div className="flex shrink-0 items-center gap-0.5 px-2 pb-1 pt-2">
+          {/* The filter, with its clear button inside the box. */}
+          <div className="mr-0.5 flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-subtle pl-2 pr-1 transition-colors focus-within:border-[var(--accent)]"
+            style={{ background: "var(--bg-elev)" }}>
+            <Search size={13} className="shrink-0 text-text-muted" />
+            <input
+              value={filter} onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter notes"
+              className="min-w-0 flex-1 bg-transparent text-[12.5px] text-text-primary outline-none placeholder:text-text-muted"
+            />
+            {filter && (
+              <button onClick={() => setFilter("")} title="Clear the filter"
+                className="grid size-5 shrink-0 place-items-center rounded text-text-muted transition-colors hover:bg-white/10 hover:text-text-primary">
+                <X size={12} />
+              </button>
+            )}
+          </div>
+          <button onClick={() => askNew(root, "note")} title="New note in the vault root" className={toolBtn}>
+            <FilePlus2 size={14} />
           </button>
-          <button onClick={() => askNew(root, "folder")} title="New folder in the vault root"
-            className="shrink-0 text-text-muted hover:text-text">
-            <FolderPlus size={13} />
+          <button onClick={() => askNew(root, "folder")} title="New folder in the vault root" className={toolBtn}>
+            <FolderPlus size={14} />
           </button>
-          <button onClick={() => void load()} title="Re-read the vault"
-            className="shrink-0 text-text-muted hover:text-text">
-            <RefreshCw size={13} />
+          <button onClick={() => void load()} title="Re-read the vault" className={toolBtn}>
+            <RefreshCw size={14} />
           </button>
         </div>
-        <div className="scroll-thin min-h-0 flex-1 overflow-auto py-1">
+        <div className="scroll-thin min-h-0 flex-1 overflow-auto px-1 py-1">
           {shown
             ? shown.map((n) => {
                 const Icon = iconFor(n.rel);
@@ -932,10 +944,10 @@ export default function Vault() {
                   onOpenPermanent={(p) => void open(p, false)} onMenu={rowMenu} />
               ))}
           {shown?.length === 0 && (
-            <p className="px-2 py-3 text-[12px] text-text-muted">No note matches.</p>
+            <p className="px-2.5 py-2 text-[12px] leading-relaxed text-text-muted">No note matches. Clear the filter to see the whole vault.</p>
           )}
         </div>
-        <div className="shrink-0 border-t border-subtle px-2 py-1 text-[11px] text-text-muted">
+        <div className="shrink-0 px-3 py-1.5 text-[11px] text-text-muted">
           {notes.length} files
         </div>
       </div>
@@ -951,15 +963,17 @@ export default function Vault() {
         {/* In a narrow pane the tree's toggle sits at the start of the tab row. */}
         <div className="flex min-w-0 items-stretch">
         {narrow && (
-          <button onClick={() => setTreeOpen((o) => !o)} title={treeOpen ? "Hide notes" : "Show notes"}
-            className="flex shrink-0 items-center border-b border-r border-subtle px-2.5 py-1.5 text-text-muted transition-colors hover:text-text"
-            style={treeOpen ? { color: "var(--accent)" } : undefined}>
-            <PanelLeft size={15} />
-          </button>
+          <div className="flex h-9 shrink-0 items-center border-b border-subtle pl-1.5">
+            <button onClick={() => setTreeOpen((o) => !o)} title={treeOpen ? "Hide notes" : "Show notes"} aria-pressed={treeOpen}
+              className={toolBtn} style={treeOpen ? { background: "var(--accent-soft)", color: "var(--text-primary)" } : undefined}>
+              <PanelLeft size={15} />
+            </button>
+          </div>
         )}
         <div className="min-w-0 flex-1">
         {tabs.length > 0 && (
           <TabStrip
+            chip
             tabs={tabs.map((t) => {
               const Icon = iconFor(t.path);
               return {
@@ -986,14 +1000,14 @@ export default function Vault() {
             trailing={openKind === "markdown" ? (
               <button onClick={() => void findBacklinks()}
                 title="Find notes linking here"
-                className="flex shrink-0 items-center gap-1 px-2 text-[12px] text-text-muted hover:text-text">
+                className="flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[12px] text-text-muted transition-colors hover:bg-white/5 hover:text-text-primary">
                 <Link2 size={13} /> Backlinks
               </button>
             ) : openPath ? (
               // The one thing the removed path row said that the tab does not: this file cannot
               // be edited here.
-              <span className="flex shrink-0 items-center px-2 text-[10px] uppercase tracking-wide text-text-muted">
-                read-only
+              <span className="shrink-0 rounded-full px-1.5 py-px text-[10.5px] text-text-muted" style={{ background: "var(--bg-elev)" }}>
+                Read-only
               </span>
             ) : undefined}
           />
@@ -1037,38 +1051,50 @@ export default function Vault() {
                 count is clicked, so a note's own text keeps the height by default. */}
             <div className="flex shrink-0 flex-col border-t border-subtle">
               {backlinks && backlinks.length > 0 && (
-                <div className="scroll-thin max-h-40 overflow-auto px-3 py-2 text-[12px]">
+                <div className="scroll-thin max-h-40 overflow-auto px-1.5 py-1.5 text-[12.5px]">
                   {backlinks.map((b) => (
                     <button key={b.note.rel} onClick={() => void open(b.note.path)}
-                      className="flex w-full flex-col items-start rounded px-1.5 py-1 text-left hover:bg-white/5">
-                      <span className="text-text">{noteTitle(b.note.rel)}</span>
+                      className="flex w-full flex-col items-start rounded-md px-2 py-1 text-left transition-colors hover:bg-white/5">
+                      <span className="text-text-primary">{noteTitle(b.note.rel)}</span>
                       <span className="w-full truncate text-[11px] text-text-muted">{b.line}</span>
                     </button>
                   ))}
                 </div>
               )}
-              <div className="flex items-center justify-end gap-3 px-3 py-1 text-[11px] text-text-muted">
+              <div className="flex h-7 items-center justify-end gap-0.5 px-2 text-[11px] text-text-muted">
                 {openKind === "markdown" && (
                   <>
                     <button
                       onClick={() => (backlinks ? setBacklinks(null) : void findBacklinks())}
                       disabled={backCount === 0}
                       title={backCount === 0 ? "No notes link here" : "Show the notes linking here"}
-                      className="hover:text-text disabled:cursor-default disabled:hover:text-text-muted">
+                      aria-pressed={!!backlinks}
+                      className="flex h-5 items-center rounded-md px-1.5 transition-colors hover:bg-white/5 hover:text-text-primary disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-text-muted"
+                      style={backlinks ? { background: "var(--accent-soft)", color: "var(--text-primary)" } : undefined}>
                       {backCount === null ? "…" : `${backCount} backlink${backCount === 1 ? "" : "s"}`}
                     </button>
-                    <span className="opacity-40">|</span>
-                    <span>{counts.words.toLocaleString()} words</span>
-                    <span>{counts.chars.toLocaleString()} characters</span>
+                    <i aria-hidden className="mx-1 h-3.5 w-px bg-white/10" />
+                    <span className="px-1.5">{counts.words.toLocaleString()} words</span>
+                    <span className="px-1.5">{counts.chars.toLocaleString()} characters</span>
                   </>
                 )}
-                {openKind !== "markdown" && <span>read-only</span>}
+                {openKind !== "markdown" && <span className="px-1.5">Read-only</span>}
               </div>
             </div>
           </>
         ) : (
-          <div className="flex h-full items-center justify-center text-[13px] text-text-muted">
-            Pick a note.
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-[12.5px] text-text-muted">
+            <span>Open a note from the tree, or start a new one.</span>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button onClick={() => askNew(root, "note")} className={primaryBtn} style={{ background: "var(--accent)" }}>
+                <FilePlus2 size={14} /> New note
+              </button>
+              {narrow && (
+                <button onClick={() => setTreeOpen(true)} className={secondaryBtn} style={{ background: "var(--bg-elev)" }}>
+                  <PanelLeft size={14} /> Show notes
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1101,15 +1127,13 @@ export function Settings() {
   const [root, setRoot] = useState("");
   useEffect(() => { getVaultRoot().then(setRoot).catch((e) => console.warn("[vault] vault root read failed", e)); }, []);
   return (
-    <div className="space-y-1.5">
-      <div className="text-xs font-medium text-text-secondary">Vault folder</div>
+    <Field label="Vault folder" hint="Any folder of markdown notes; an Obsidian vault works as it is.">
       <button onClick={async () => { const d = await chooseVault(); if (d) setRoot(d); }}
-        className="flex w-full items-center gap-2 rounded-lg border border-subtle px-3 py-2.5 text-left text-sm hover:border-accent-soft"
+        className="flex h-8 w-full items-center gap-2 rounded-lg border border-subtle px-2.5 text-left text-[12.5px] text-text-primary transition-colors hover:border-strong"
         style={{ background: "var(--bg-elev)" }}>
-        <FolderOpen size={16} className="shrink-0 text-text-muted" />
-        <span className={root ? "" : "text-text-muted"}>{root || "Not set — click to choose"}</span>
+        <FolderOpen size={14} className="shrink-0 text-text-muted" />
+        <span className={"min-w-0 truncate " + (root ? "" : "text-text-muted")}>{root || "Not set — click to choose"}</span>
       </button>
-      <div className="text-[11px] italic text-text-muted">Any folder of markdown notes; an Obsidian vault works as it is.</div>
-    </div>
+    </Field>
   );
 }
