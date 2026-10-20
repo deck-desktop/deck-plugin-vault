@@ -472,7 +472,8 @@ export default function Vault() {
 
     let tries = 0;
     const tryScroll = () => {
-      const el = document.querySelector<HTMLElement>(`[data-drag-id="${CSS.escape(nFile)}"]`);
+      // Within this view: in a floating window the main page does not have the row.
+      const el = (rootEl ?? document).querySelector<HTMLElement>(`[data-drag-id="${CSS.escape(nFile)}"]`);
       if (el) {
         let box: HTMLElement | null = el.parentElement;
         while (box && getComputedStyle(box).overflowY !== "auto") box = box.parentElement;
@@ -487,7 +488,7 @@ export default function Vault() {
       if (tries++ < 20) requestAnimationFrame(tryScroll); // ~20 frames, then give up
     };
     requestAnimationFrame(tryScroll);
-  }, [root]);
+  }, [root, rootEl]);
 
   const open = useCallback(async (path: string, preview = true) => {
     await flush();
