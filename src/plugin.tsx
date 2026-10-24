@@ -25,9 +25,10 @@ import {
 } from "../shim/bridge.js";
 import {
   MarkdownLive, MarkdownToolbar, cmSurface, TreeRow, TabStrip, ContextMenu, ConfirmDialog,
-  NamePrompt, Field, toast, useResize, useRowDrag,
+  NamePrompt, Field, useResize, useRowDrag,
   type MenuEntry, type ConfirmState, type NamePromptState, type TextSurface,
 } from "../shim/ui.js";
+import { notice, failure } from "./notice";
 import type { EditorView } from "@codemirror/view";
 import { monaco } from "../shim/monaco.js";
 import { listen } from "../shim/event.js";
@@ -423,7 +424,7 @@ export default function Vault() {
     if (!isNote(t.path) || t.text === t.saved) return;
     await fsWrite(t.path, t.text)
       .then(() => patchTab(t.path, { saved: t.text }))
-      .catch((e) => toast(String(e), "error"));
+      .catch((e) => failure(String(e)));
   }, [patchTab]);
 
   /** Flush the pending edit before anything that would replace or discard it. */
@@ -509,7 +510,7 @@ export default function Vault() {
     // itself or points an element at the file — fsRead decodes as UTF-8 and would mangle a binary.
     let body = "";
     if (isNote(p)) {
-      const read = await fsRead(p).catch((e) => { toast(String(e), "error"); return null; });
+      const read = await fsRead(p).catch((e) => { failure(String(e)); return null; });
       if (read === null) return;
       body = read;
     }
@@ -565,7 +566,7 @@ export default function Vault() {
     saveTimer.current = setTimeout(() => {
       saveTimer.current = undefined;
       fsWrite(path, body).then(() => patchTab(path, { saved: body }))
-        .catch((e) => toast(String(e), "error"));
+        .catch((e) => failure(String(e)));
     }, 600);
     return () => clearTimeout(saveTimer.current);
   }, [activeTab, patchTab]);
@@ -588,7 +589,7 @@ export default function Vault() {
       await fn();
       await refreshTree();
     } catch (e) {
-      toast(`${failed}: ${String(e).replace(/^Error:\s*/, "")}`, "error");
+      failure(`${failed}: ${String(e).replace(/^Error:\s*/, "")}`);
     }
   }, [refreshTree]);
 
@@ -600,7 +601,7 @@ export default function Vault() {
       confirmLabel: "Create",
       onSave: (value) => {
         const bad = nameError(value);
-        if (bad) { toast(bad, "error"); return; }
+        if (bad) { failure(bad); return; }
         const name = value.trim();
         void act(async () => {
           if (kind === "folder") {
@@ -626,7 +627,7 @@ export default function Vault() {
       confirmLabel: "Rename",
       onSave: (value) => {
         const bad = nameError(value);
-        if (bad) { toast(bad, "error"); return; }
+        if (bad) { failure(bad); return; }
         const name = value.trim();
         if (name === node.entry.name) return;
         void act(async () => {
@@ -678,7 +679,7 @@ export default function Vault() {
     const dest = target.kind === "folder" ? target.id : dirOf(target.id);
     if (dirOf(dragId) === dest) return; // already there
     if (isInside(dragId, dest)) {
-      toast("A folder cannot be moved inside itself", "error");
+      failure("A folder cannot be moved inside itself");
       return;
     }
     void act(async () => {
@@ -701,25 +702,25 @@ export default function Vault() {
         { label: "Rename", icon: Pencil, onClick: () => askRename(node) },
         { label: "Delete", icon: Trash2, danger: true, onClick: () => askDelete(node) },
         "sep",
-        { label: "Reveal in Explorer", icon: FolderOpen, onClick: () => void fsReveal(node.entry.path).catch((err) => toast(String(err), "error")) },
+        { label: "Reveal in Explorer", icon: FolderOpen, onClick: () => void fsReveal(node.entry.path).catch((err) => failure(String(err))) },
         {
           label: "Copy path", icon: Copy,
           onClick: () => void navigator.clipboard.writeText(node.entry.path)
-            .then(() => toast("Path copied"))
-            .catch((err) => toast(String(err), "error")),
+            .then(() => notice("Path copied"))
+            .catch((err) => failure(String(err))),
         },
         {
           label: "Copy vault path", icon: Copy,
           onClick: () => void navigator.clipboard.writeText(relTo(root, node.entry.path))
-            .then(() => toast("Path copied"))
-            .catch((err) => toast(String(err), "error")),
+            .then(() => notice("Path copied"))
+            .catch((err) => failure(String(err))),
         },
         ...(node.entry.dir || !isNote(node.entry.path) ? [] : [{
           // What you paste into another note to link here.
           label: "Copy as wikilink", icon: Link2,
           onClick: () => void navigator.clipboard.writeText(`[[${noteTitle(node.entry.name)}]]`)
-            .then(() => toast("Wikilink copied"))
-            .catch((err) => toast(String(err), "error")),
+            .then(() => notice("Wikilink copied"))
+            .catch((err) => failure(String(err))),
         }]),
       ],
     });
@@ -792,7 +793,7 @@ export default function Vault() {
    */
   const follow = useCallback((target: string) => {
     const hit = resolveLink(target, notes, openRel);
-    if (!hit) { toast(`No note called "${target}"`, "error"); return; }
+    if (!hit) { failure(`No note called "${target}"`); return; }
     void open(hit.path);
   }, [notes, openRel, open]);
 
