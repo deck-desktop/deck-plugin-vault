@@ -1,37 +1,37 @@
-# Vault
+# Vault for Deck
 
-Browse and edit an Obsidian vault as live-preview markdown, with wikilinks and backlinks.
+Browse and edit a folder of markdown notes, such as an Obsidian vault, as live-preview markdown
+with wikilinks and backlinks. Open it from the **+** beside your tabs and choose **Vault**.
 
-`[[Links]]` resolve the way Obsidian resolves them - shortest unique name first - and every note
-shows what links back to it. Editing is live preview rather than a split pane: the markdown is
-styled in place, so there is no source-and-preview pair to keep in sync.
+![Vault](docs/screenshot.png)
 
-The manifest sets `fullBleed`, so the tab gets the whole window without Deck's usual padding.
+Needs: a folder of notes, chosen in the tab the first time or in Settings > Plugins > Vault. An
+Obsidian vault works as it is.
 
-## What it exports
+## Notes
 
-| Export | Where it renders |
-|---|---|
-| `default` | the tab: the file tree and the editor |
+- **Live preview.** The markdown is styled in place as you type, in the same editor Deck uses
+  for a `.md` file, with its formatting toolbar, and Mermaid diagrams drawn. Notes save as you
+  type and when you close them. Ctrl+wheel changes the text size.
+- **Tabs.** A single click opens a note in a preview tab that the next click replaces; a
+  double-click, or an edit, keeps it.
+- **Wikilinks.** Typing `[[` offers the vault's notes and writes the shortest name that finds
+  the note. Click a link to open its note; links resolve as Obsidian resolves them (the
+  shallowest note of that name wins, `[[Note#heading|alias]]` included).
+- **Backlinks.** The status bar counts the notes linking to the open one; click the count to
+  list them with the line that links. Words and characters are counted beside it.
+- **Embeds.** `![[image.png]]` finds the file by name anywhere in the vault.
+- **Other files** open read-only: images, audio, video, PDFs and text.
 
-## Checks
+## The tree
 
-```sh
-node plugins/vault/vault.check.mjs
-```
+- A filter box, and buttons for a new note, a new folder and re-reading the vault.
+- Right-click for new note or folder, rename, delete, Reveal in Explorer, Copy path, Copy vault
+  path and Copy as wikilink. Drag a row onto a folder to move it there; open tabs follow.
+- Dotfiles and dot-folders (`.obsidian`, `.git`), `node_modules`, and Syncthing's conflict
+  copies are hidden.
+- In a narrow pane the tree becomes a drawer over the note.
 
-Wikilink parsing, link resolution and backlink collection - the part that decides whether a link
-goes to the right note.
-
-## Build
-
-```sh
-node plugins/vault/build.mjs
-```
-
-See [../README.md](../README.md) for how the build and the shims work.
-
-## Install
-
-Copy `plugin.json` and `plugin.js` into `%APPDATA%\Deck\plugins\vault\` (`Deck-Dev` for a
-debug build) and restart Deck.
+The vault folder is kept in `data\vault\vault-root.json` in Deck's config folder. Nothing from
+the notes is cached: the vault is read from disk when the tab opens or you re-read it, so
+Obsidian or a sync tool can write to the same folder.
