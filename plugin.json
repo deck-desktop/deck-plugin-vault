@@ -6,5 +6,8 @@
   "color": "#a78bfa",
   "version": "1.2.2",
   "minDeck": "1.9.0",
+  "permissions": [
+    "files"
+  ],
   "fullBleed": true
 }
