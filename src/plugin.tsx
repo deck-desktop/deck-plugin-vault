@@ -29,6 +29,7 @@ import {
   type MenuEntry, type ConfirmState, type NamePromptState, type TextSurface,
 } from "../shim/ui.js";
 import { notice, failure } from "./notice";
+import { dropOnTerminal } from "./termdrop";
 import type { EditorView } from "@codemirror/view";
 import { monaco } from "../shim/monaco.js";
 import { listen } from "../shim/event.js";
@@ -279,17 +280,25 @@ function Row({ node, depth, root, openPath, expanded, drag, onToggle, onOpen, on
 
 // ---- the tab ---------------------------------------------------------------------------------
 
+/**
+ * What was open when the tab was last on screen: its tabs, the note in front and the open folders.
+ * A tab you leave unmounts, and these came back empty; they come back from here instead, for the
+ * same vault. Module-level, like the Notes plugin's: view state for this session, not for disk.
+ */
+const kept = { root: "", tabs: [] as Tab[], openPath: null as string | null, expanded: new Set<string>() };
+
 export default function Vault() {
   const [root, setRoot] = useState("");
   const [tree, setTree] = useState<Dir[]>([]);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(() => kept.expanded);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
 
   // The open file. `text` is what the editor holds and `saved` what is on disk, so the autosave
   // can tell an edit from a load. Only markdown uses them; everything else is read-only.
-  const [tabs, setTabs] = useState<Tab[]>([]);
-  const [openPath, setOpenPath] = useState<string | null>(null);
+  const [tabs, setTabs] = useState<Tab[]>(() => kept.tabs);
+  const [openPath, setOpenPath] = useState<string | null>(() => kept.openPath);
+  useEffect(() => { kept.tabs = tabs; kept.openPath = openPath; kept.expanded = expanded; }, [tabs, openPath, expanded]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const activeTab = tabs.find((t) => t.path === openPath) ?? null;
@@ -360,9 +369,18 @@ export default function Vault() {
     setLoading(true);
     const r = await getVaultRoot().catch((e) => { console.warn("[vault] vault root read failed", e); return ""; });
     setRoot(r);
+    // Another vault than the one kept: what was open belonged to that one.
+    if (r !== kept.root) {
+      if (kept.root) { setTabs([]); setOpenPath(null); setExpanded(new Set()); kept.expanded = new Set(); }
+      kept.root = r;
+    }
     if (!r) { setLoading(false); return; }
     const [top, all] = await Promise.all([listDir(r), walkNotes(r)]);
-    setTree(top.map((entry) => ({ entry, children: null })));
+    // The folders kept open are built open, as refreshTree does.
+    const open = kept.expanded;
+    const build = async (entries: FsEntry[]): Promise<Dir[]> => Promise.all(entries.map(async (entry): Promise<Dir> =>
+      entry.dir && open.has(norm(entry.path)) ? { entry, children: await build(await listDir(entry.path).catch(() => [])) } : { entry, children: null }));
+    setTree(await build(top));
     setNotes(all);
     setLoading(false);
   }, []);
@@ -672,7 +690,8 @@ export default function Vault() {
 
   // Dragging a row onto a folder moves it there. The drop target is hit-tested from the cursor
   // (see components/dragrow.ts) because HTML5 drag does not work in this window at all.
-  const drag = useRowDrag((dragId, target) => {
+  const drag = useRowDrag((dragId, target, x, y) => {
+    if (!target && dropOnTerminal([dragId], x, y)) return; // over a terminal: its path typed there
     if (!target || target.id === dragId) return;
     // A drop on a file means its folder — the row under the cursor is the insertion point, and
     // "into this note" is not a thing a filesystem can do.

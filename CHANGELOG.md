@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- A note dragged onto one of Deck's terminals types its path there. Uses the terminals
+  permission.
+- Keeps its open tabs, the note in front and the open folders when you switch away and back.
+
 ## 1.2.3 (2026-10-30)
 
 - A licence, this changelog, a README rewritten with a screenshot, and the permissions it uses
