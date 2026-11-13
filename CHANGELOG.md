@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 (2026-11-13)
 
 - A note dragged onto one of Deck's terminals types its path there. Uses the terminals
   permission.
