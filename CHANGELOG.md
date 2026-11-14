@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.0 (2026-11-14)
+
+- Notes dropped on a Claude chat in Deck go into its message box, and the pane under a drag is
+  outlined. Needs Deck 1.18.0.
+
 ## 1.3.0 (2026-11-13)
 
 - A note dragged onto one of Deck's terminals types its path there. Uses the terminals
