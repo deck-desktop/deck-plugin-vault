@@ -29,7 +29,7 @@ import {
   type MenuEntry, type ConfirmState, type NamePromptState, type TextSurface,
 } from "../shim/ui.js";
 import { notice, failure } from "./notice";
-import { dropOnTerminal } from "./termdrop";
+import { dropOnTerminal, paintTerminal } from "./termdrop";
 import type { EditorView } from "@codemirror/view";
 import { monaco } from "../shim/monaco.js";
 import { listen } from "../shim/event.js";
@@ -707,7 +707,7 @@ export default function Vault() {
       await fsMove(dragId, dest, "rename");
       retarget(dragId, `${dest}/${dragId.slice(dragId.lastIndexOf("/") + 1)}`);
     }, "Could not move it");
-  });
+  }, paintTerminal);
 
   const rowMenu = (e: React.MouseEvent, node: Dir) => {
     e.preventDefault();
